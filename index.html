@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Home Automation Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --color-on: #10b981;
+            --color-off: #475569;
+            --bulb-glow: rgba(251, 191, 36, 0.8);
+            --tube-glow: rgba(255, 255, 255, 0.8);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at top left, #1e293b, #0b0f19);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        header {
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--card-border);
+            background: rgba(11, 15, 25, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .conn-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .conn-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--color-off);
+            box-shadow: 0 0 5px var(--color-off);
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        .conn-dot.connected {
+            background-color: var(--color-on);
+            box-shadow: 0 0 10px var(--color-on);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+
+        .devices-container {
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .device-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 40px 30px;
+            width: 250px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .device-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+        }
+
+        .device-name {
+            margin-top: 30px;
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+
+        /* Animations & Shapes */
+        
+        /* 1. Light Bulb */
+        .bulb-wrapper {
+            position: relative;
+            width: 60px;
+            height: 90px;
+        }
+        .bulb {
+            width: 60px;
+            height: 60px;
+            background-color: var(--color-off);
+            border-radius: 50%;
+            position: absolute;
+            top: 0;
+            transition: background-color 0.4s, box-shadow 0.4s;
+        }
+        .bulb::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 15px;
+            width: 30px;
+            height: 25px;
+            background-color: #334155;
+            border-radius: 0 0 10px 10px;
+        }
+        .bulb.on {
+            background-color: #fcd34d;
+            box-shadow: 0 0 40px var(--bulb-glow), 0 0 80px var(--bulb-glow);
+        }
+
+        /* 2. Tube Light */
+        .tube-wrapper {
+            width: 140px;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .tube {
+            width: 100%;
+            height: 16px;
+            background-color: var(--color-off);
+            border-radius: 10px;
+            position: relative;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        .tube::before, .tube::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 24px;
+            background-color: #334155;
+            top: -4px;
+            border-radius: 2px;
+        }
+        .tube::before { left: -4px; }
+        .tube::after { right: -4px; }
+        
+        .tube.on {
+            background-color: #ffffff;
+            box-shadow: 0 0 20px var(--tube-glow), 0 0 50px var(--tube-glow);
+        }
+
+        /* 3. Ceiling Fan */
+        .fan-wrapper {
+            width: 90px;
+            height: 90px;
+            position: relative;
+        }
+        .fan-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            background-color: #94a3b8;
+            border-radius: 50%;
+            z-index: 2;
+        }
+        .blades {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: transform 0.1s linear; /* Physics loop handled in JS */
+        }
+        .blade {
+            position: absolute;
+            width: 8px;
+            height: 40px;
+            background-color: var(--color-off);
+            border-radius: 10px;
+            left: 41px; /* 90/2 - 4 */
+            top: 5px;
+            transform-origin: 50% 40px; /* Spin around center */
+        }
+        .blade:nth-child(2) { transform: rotate(120deg); }
+        .blade:nth-child(3) { transform: rotate(240deg); }
+        
+        .blades.on .blade {
+            background-color: #cbd5e1;
+        }
+
+        /* Status Panel */
+        .status-panel {
+            background: rgba(11, 15, 25, 0.95);
+            border-top: 1px solid var(--card-border);
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255,255,255,0.03);
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.05);
+            min-width: 200px;
+        }
+
+        .status-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .status-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .status-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .status-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--color-off);
+        }
+        
+        .status-value.on {
+            color: var(--color-on);
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--color-off);
+            margin-left: auto;
+        }
+
+        .status-indicator.on {
+            background-color: var(--color-on);
+            box-shadow: 0 0 8px var(--color-on);
+        }
+
+        @media (max-width: 768px) {
+            header { flex-direction: column; gap: 15px; text-align: center; }
+            .status-panel { flex-direction: column; align-items: center; }
+            .status-item { width: 100%; max-width: 300px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Smart Home Automation</h1>
+        <div class="conn-status">
+            <div class="conn-dot" id="conn-dot"></div>
+            <span id="conn-text">Connecting to Firebase...</span>
+        </div>
+    </header>
+
+    <main>
+        <div class="devices-container">
+            <!-- Light Bulb -->
+            <div class="device-card">
+                <div class="bulb-wrapper">
+                    <div class="bulb" id="bulb-anim"></div>
+                </div>
+                <div class="device-name">Light Bulb</div>
+            </div>
+
+            <!-- Tube Light -->
+            <div class="device-card">
+                <div class="tube-wrapper">
+                    <div class="tube" id="tube-anim"></div>
+                </div>
+                <div class="device-name">Tube Light</div>
+            </div>
+
+            <!-- Ceiling Fan -->
+            <div class="device-card">
+                <div class="fan-wrapper">
+                    <div class="fan-center"></div>
+                    <div class="blades" id="fan-anim">
+                        <div class="blade"></div>
+                        <div class="blade"></div>
+                        <div class="blade"></div>
+                    </div>
+                </div>
+                <div class="device-name">Ceiling Fan</div>
+            </div>
+        </div>
+    </main>
+
+    <div class="status-panel">
+        <div class="status-item">
+            <div class="status-icon">💡</div>
+            <div class="status-info">
+                <span class="status-label">Light Bulb</span>
+                <span class="status-value" id="bulb-status-text">LOADING</span>
+            </div>
+            <div class="status-indicator" id="bulb-indicator"></div>
+        </div>
+        
+        <div class="status-item">
+            <div class="status-icon">📏</div>
+            <div class="status-info">
+                <span class="status-label">Tube Light</span>
+                <span class="status-value" id="tube-status-text">LOADING</span>
+            </div>
+            <div class="status-indicator" id="tube-indicator"></div>
+        </div>
+
+        <div class="status-item">
+            <div class="status-icon">🌀</div>
+            <div class="status-info">
+                <span class="status-label">Ceiling Fan</span>
+                <span class="status-value" id="fan-status-text">LOADING</span>
+            </div>
+            <div class="status-indicator" id="fan-indicator"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Setup -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        // ==========================================
+        // 1. FIREBASE CONFIGURATION - CHANGE THIS
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com", // Ensure this is correct
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // UI Update Helper Function
+        function updateUI(device, isOn) {
+            const animElement = document.getElementById(`${device}-anim`);
+            const indicatorElement = document.getElementById(`${device}-indicator`);
+            const textElement = document.getElementById(`${device}-status-text`);
+
+            if (isOn) {
+                animElement.classList.add('on');
+                indicatorElement.classList.add('on');
+                textElement.classList.add('on');
+                textElement.innerText = "ON";
+                if(device === 'fan') fanTargetSpeed = 20; // Deg per frame
+            } else {
+                animElement.classList.remove('on');
+                indicatorElement.classList.remove('on');
+                textElement.classList.remove('on');
+                textElement.innerText = "OFF";
+                if(device === 'fan') fanTargetSpeed = 0;
+            }
+        }
+
+        // Fan Physics Variables
+        let fanRotation = 0;
+        let fanCurrentSpeed = 0;
+        let fanTargetSpeed = 0;
+        const fanElement = document.getElementById('fan-anim');
+
+        // Fan Animation Loop for smooth start/stop
+        function animateFan() {
+            // Smooth interpolation for speed
+            fanCurrentSpeed += (fanTargetSpeed - fanCurrentSpeed) * 0.05;
+            
+            if (fanCurrentSpeed > 0.1 || fanTargetSpeed > 0) {
+                fanRotation += fanCurrentSpeed;
+                fanElement.style.transform = `rotate(${fanRotation}deg)`;
+            }
+            
+            requestAnimationFrame(animateFan);
+        }
+        requestAnimationFrame(animateFan);
+
+        // Normalize DB values to Boolean
+        function parseBool(val) {
+            if (typeof val === 'boolean') return val;
+            if (typeof val === 'string') {
+                const lower = val.toLowerCase();
+                return lower === 'true' || lower === 'on' || lower === '1';
+            }
+            if (typeof val === 'number') return val > 0;
+            return false;
+        }
+
+        try {
+            // Initialize Firebase
+            const app = initializeApp(firebaseConfig);
+            const db = getDatabase(app);
+
+            // Update Connection Status UI
+            document.getElementById('conn-dot').classList.add('connected');
+            document.getElementById('conn-text').innerText = "Connected to Firebase";
+
+            // ==========================================
+            // 2. DATABASE PATHS - CHANGE IF NEEDED
+            // ==========================================
+            
+            // Listen to Light Bulb
+            onValue(ref(db, 'automation/light'), (snapshot) => {
+                if(snapshot.exists()) {
+                    updateUI('bulb', parseBool(snapshot.val()));
+                } else {
+                    updateUI('bulb', false);
+                }
+            }, (error) => {
+                console.error("Firebase read error (light):", error);
+            });
+
+            // Listen to Tube Light
+            onValue(ref(db, 'automation/tube'), (snapshot) => {
+                if(snapshot.exists()) {
+                    updateUI('tube', parseBool(snapshot.val()));
+                } else {
+                    updateUI('tube', false);
+                }
+            });
+
+            // Listen to Ceiling Fan
+            onValue(ref(db, 'automation/fan'), (snapshot) => {
+                if(snapshot.exists()) {
+                    updateUI('fan', parseBool(snapshot.val()));
+                } else {
+                    updateUI('fan', false);
+                }
+            });
+
+        } catch (error) {
+            console.error("Firebase initialization failed:", error);
+            document.getElementById('conn-text').innerText = "Firebase Config Missing or Error";
+            document.getElementById('conn-text').style.color = "#ef4444";
+        }
+    </script>
+</body>
+</html>
